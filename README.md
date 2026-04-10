@@ -13,15 +13,26 @@ hashing-ecdsa-poc/
 │   ├── tech-spec.md          — architecture, key flows, error handling, security
 │   └── verification.md       — test vectors and verification steps
 ├── app/
-│   └── web/                  — Assignment 1: static web app
-│       ├── index.html        — UI (two tabs: SHA-256 and ECDSA P-256)
-│       ├── style.css         — styles
-│       ├── crypto-utils.js   — pure async crypto functions (also used by tests)
-│       ├── app.js            — UI event handlers
-│       ├── package.json      — Jest test runner config
-│       └── tests/
-│           ├── setup.js              — Jest setup (Web Crypto global for Node.js 18+)
-│           └── crypto-utils.test.js  — automated test suite
+│   ├── web/                  — Assignment 1: static web app
+│   │   ├── index.html        — UI (two tabs: SHA-256 and ECDSA P-256)
+│   │   ├── style.css         — styles
+│   │   ├── crypto-utils.js   — pure async crypto functions (also used by tests)
+│   │   ├── app.js            — UI event handlers
+│   │   ├── package.json      — Jest test runner config
+│   │   └── tests/
+│   │       ├── setup.js              — Jest setup (Web Crypto global for Node.js 18+)
+│   │       └── crypto-utils.test.js  — automated test suite
+│   └── mobile/               — Assignment 2: Flutter Android app
+│       ├── lib/
+│       │   ├── main.dart             — MaterialApp entry point
+│       │   ├── screens/
+│       │   │   └── home_screen.dart  — two-tab UI (SHA-256 and ECDSA P-256)
+│       │   └── crypto/
+│       │       ├── sha256_service.dart  — SHA-256 wrapper (pointycastle)
+│       │       └── ecdsa_service.dart   — P-256 keygen, sign, verify (pointycastle)
+│       ├── test/
+│       │   └── crypto_test.dart      — flutter test suite
+│       └── pubspec.yaml
 └── README.md
 ```
 
@@ -124,6 +135,186 @@ Expected output: 16 tests across 4 suites, all passing. Tests cover:
 - Keypair format checks (public key 130 chars, private key 64 chars)
 - Sign + verify round-trips (RT-1 through RT-4)
 - Guard and validation error messages (GV-1 through GV-6)
+
+---
+
+---
+
+## Assignment 2 — Mobile App (SHA-256 + ECDSA P-256)
+
+Targets an Android emulator (API 33, Pixel 4 profile). Uses Flutter with the `pointycastle` library for all crypto.
+
+### Prerequisites
+
+| Tool | Required version | Purpose |
+|------|-----------------|---------|
+| OpenJDK | 17 | Required by Android Gradle Plugin 8.x |
+| Android SDK | compileSdk 36, platform-tools | Build and emulator toolchain |
+| Android Emulator image | API 33, x86_64 | `google_apis;x86_64` system image |
+| Flutter | 3.41.6 stable | App framework and `flutter test` runner |
+
+### Environment Setup (Ubuntu)
+
+#### Step 1 — Java 17
+
+```bash
+sudo apt update
+sudo apt install -y openjdk-17-jdk
+
+java -version
+# Expected: openjdk version "17.x.x ..."
+
+# If multiple Java versions exist, select 17:
+sudo update-alternatives --config java
+```
+
+Set `JAVA_HOME` in your shell profile (`~/.bashrc` or `~/.zshrc`):
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+```
+
+#### Step 2 — Android Command-Line Tools
+
+Download the **Command line tools only** package for Linux from
+`https://developer.android.com/studio` (scroll to "Command line tools only").
+
+Then unpack it into the required directory layout:
+
+```bash
+mkdir -p ~/Android/sdk/cmdline-tools/latest
+unzip cmdline-tools-linux.zip -d /tmp/cmdtools
+mv /tmp/cmdtools/cmdline-tools/* ~/Android/sdk/cmdline-tools/latest/
+```
+
+Add the following to your shell profile and reload it:
+
+```bash
+export ANDROID_HOME=$HOME/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+export PATH=$PATH:$ANDROID_HOME/emulator
+```
+
+Verify the variables are active:
+
+```bash
+echo $ANDROID_HOME
+# Expected: /home/<you>/Android/sdk
+
+sdkmanager --version
+# Expected: a version number, e.g. 12.0
+```
+
+#### Step 3 — Android SDK Components
+
+```bash
+# Accept all SDK licences
+sdkmanager --licenses
+
+# Install the required components
+sdkmanager \
+  "platform-tools" \
+  "build-tools;36.0.0" \
+  "platforms;android-33" \
+  "platforms;android-36" \
+  "system-images;android-33;google_apis;x86_64" \
+  "emulator"
+```
+
+#### Step 4 — Create the Android Virtual Device (AVD)
+
+```bash
+avdmanager create avd \
+  --name Pixel4_API33 \
+  --package "system-images;android-33;google_apis;x86_64" \
+  --device "pixel_4"
+```
+
+Verify it was created:
+
+```bash
+avdmanager list avd
+# Should list: Pixel4_API33
+```
+
+#### Step 5 — Flutter (stable channel)
+
+The spec was written against 3.24.0, but any current stable release works — Flutter is backward-compatible and `pointycastle` is maintained for all stable versions.
+
+**Option A — snap (easiest on Ubuntu):**
+
+```bash
+sudo snap install flutter --classic
+flutter channel stable
+flutter upgrade
+
+flutter --version
+# Note the actual Flutter and Dart versions for your records
+```
+
+**Option B — manual install:**
+
+Download the latest stable Linux SDK archive from `https://docs.flutter.dev/get-started/install/linux`,
+extract it, and add the `flutter/bin` directory to your `PATH`.
+
+#### Step 6 — Accept Android Licences in Flutter
+
+```bash
+flutter doctor --android-licenses
+# Press 'y' to accept each licence
+```
+
+#### Step 7 — Verify the Full Setup
+
+```bash
+flutter doctor
+```
+
+All relevant items should be green. A warning about Android Studio is expected and harmless — the command-line tools are sufficient.
+
+### Running the Emulator
+
+```bash
+# Launch the emulator in the background
+emulator -avd Pixel4_API33 &
+
+# Wait ~30–60 s for it to boot, then confirm Flutter sees it:
+flutter devices
+# Expected: a line showing "sdk gphone x86 64 (mobile)"
+```
+
+### Running the App
+
+```bash
+cd app/mobile
+flutter pub get   # download dependencies (first run only)
+flutter run       # builds and deploys to the running emulator
+```
+
+### Running the Automated Tests
+
+Tests run on the host machine (no emulator required):
+
+```bash
+cd app/mobile
+flutter test
+```
+
+### Using the UI
+
+The app is a single screen with two tabs:
+
+#### SHA-256 tab
+1. Type any text in the input field.
+2. Tap **Hash**.
+3. The 64-character lowercase hex digest appears below.
+
+#### ECDSA P-256 tab
+1. Tap **Generate Keypair** — the public key (130 hex chars) and private key scalar (64 hex chars) appear.
+2. Enter a message and tap **Sign** — the 128-character hex signature (`r || s`) appears, and the message is auto-copied to the verify field.
+3. Tap **Verify** — result shows **VALID** or **INVALID**.
+   - Edit the message or signature before verifying to observe the INVALID path.
 
 ---
 

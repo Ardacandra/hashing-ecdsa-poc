@@ -93,12 +93,12 @@ All state (keypair, last message, last signature) is held in JS module-level var
 
 | Concern | Choice | Rationale |
 |---------|--------|-----------|
-| Framework | Flutter 3.24.0 (stable channel), Dart 3.5.0 | Single codebase; strong Android emulator support; no Expo Go dependency |
+| Framework | Flutter stable channel (3.24.0+), Dart 3.5.0+ | Single codebase; strong Android emulator support; no Expo Go dependency |
 | Crypto — hashing | `pointycastle` (`SHA256Digest`) | Already required for ECDSA; avoids adding a second crypto dependency |
 | Crypto — ECDSA | `pointycastle` (`ECDSASigner`, `ECCurve_secp256r1`) | De-facto standard Dart crypto library; supports P-256 natively |
-| Target platform | Android emulator (API 33, Pixel 6 profile) | Cross-platform toolchain is available; iOS requires macOS |
-| Android SDK | compileSdk 34, minSdk 21 (Android 5.0) | Broad compatibility; Flutter 3.24.0 baseline |
-| Java | 17 | Required by Android Gradle Plugin 8.x used with Flutter 3.24.0 |
+| Target platform | Android emulator (API 33, Pixel 4 profile) | Cross-platform toolchain is available; iOS requires macOS |
+| Android SDK | compileSdk 36, minSdk 21 (Android 5.0) | Required by Flutter 3.41.x; broad device compatibility |
+| Java | 17 | Required by Android Gradle Plugin 8.x |
 
 ### 3.2 Architecture
 
@@ -128,7 +128,7 @@ lib/
 
 #### Sign
 1. Guard: if no keypair is loaded, display "No keypair loaded. Generate a keypair before signing." and abort.
-2. Create `ECDSASigner(SHA256Digest())` with `HMacDSAKCalculator` (RFC 6979 deterministic k).
+2. Create `ECDSASigner(SHA256Digest(), HMac(SHA256Digest(), 64))` — the `HMac` second argument enables RFC 6979 deterministic k per the pointycastle API (the `Mac` parameter, not `HMacDSAKCalculator`).
 3. `signer.init(true, PrivateKeyParameter(privateKey))`.
 4. `signer.generateSignature(messageBytes)` → `ECSignature(r, s)`.
 5. Encode as raw `r || s`: `sig.r.toRadixString(16).padLeft(64, '0') + sig.s.toRadixString(16).padLeft(64, '0')` → 128-char hex string. `padLeft` is mandatory here for the same reason as coordinates.
