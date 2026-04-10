@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hashing + ECDSA P-256 PoC</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Shown when window.crypto.subtle is not available (non-secure context) -->
+  <div id="crypto-unavailable" class="banner hidden">
+    Web Crypto API not available. Open via localhost or https://
+  </div>
+
+  <header>
+    <h1>Hashing + ECDSA P-256</h1>
+    <p>Local PoC — all operations run in your browser, no data leaves this page</p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="sha256" role="tab" aria-selected="true">SHA-256 Hash</button>
+    <button class="tab-btn"        data-tab="ecdsa"  role="tab" aria-selected="false">ECDSA P-256</button>
+  </nav>
+
+  <main>
+
+    <!-- ================================================================
+         SHA-256 tab
+         ================================================================ -->
+    <section id="sha256" class="tab-panel active" role="tabpanel">
+
+      <div class="card">
+        <h2>SHA-256 Hashing</h2>
+
+        <div class="field">
+          <label for="hash-input">Input text</label>
+          <textarea id="hash-input" rows="4" placeholder="Type or paste any text here…"></textarea>
+        </div>
+
+        <button id="hash-btn">Hash</button>
+
+        <div class="field">
+          <label for="hash-output">
+            SHA-256 digest
+            <span class="hint">(64 hex chars · 32 bytes)</span>
+          </label>
+          <textarea id="hash-output" class="hex" rows="2" readonly
+                    placeholder="digest will appear here"></textarea>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================================================================
+         ECDSA P-256 tab
+         ================================================================ -->
+    <section id="ecdsa" class="tab-panel" role="tabpanel">
+
+      <!-- Key Generation -->
+      <div class="card">
+        <h2>Key Generation</h2>
+
+        <button id="generate-btn">Generate Keypair</button>
+
+        <div class="field">
+          <label for="public-key">
+            Public key — uncompressed (04 ‖ X ‖ Y)
+            <span class="hint">(130 hex chars · 65 bytes)</span>
+          </label>
+          <!-- Editable so the user can tamper with it to trigger GV-6 -->
+          <textarea id="public-key" class="hex" rows="3"
+                    placeholder="public key will appear here after generation"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="private-key">
+            Private key scalar <em>d</em>
+            <span class="hint">(64 hex chars · 32 bytes · display only)</span>
+          </label>
+          <textarea id="private-key" class="hex" rows="2" readonly
+                    placeholder="private key will appear here after generation"></textarea>
+        </div>
+      </div>
+
+      <!-- Sign / Verify -->
+      <div class="card">
+        <h2>Sign / Verify</h2>
+
+        <div class="field">
+          <label for="ecdsa-message">Message</label>
+          <!--
+            Shared field for both Sign and Verify (FR-3.4).
+            After signing, the message stays here so the user can click Verify
+            immediately. The field is editable so the user can tamper with it
+            to test the INVALID path.
+          -->
+          <textarea id="ecdsa-message" rows="3"
+                    placeholder="Type a message to sign…"></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button id="sign-btn">Sign</button>
+          <button id="verify-btn">Verify</button>
+        </div>
+
+        <div class="field">
+          <label for="signature">
+            Signature (r ‖ s)
+            <span class="hint">(128 hex chars · 64 bytes · editable for tamper testing)</span>
+          </label>
+          <!-- Editable so the user can tamper with it to test INVALID / error paths -->
+          <textarea id="signature" class="hex" rows="3"
+                    placeholder="signature will appear here after signing"></textarea>
+        </div>
+
+        <!-- Verification result: shows VALID or INVALID -->
+        <div id="verify-result" class="verify-result hidden"></div>
+
+        <!-- Error messages for guard and validation failures -->
+        <div id="ecdsa-error" class="error hidden"></div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- crypto-utils.js must be loaded before app.js -->
+  <script src="crypto-utils.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>

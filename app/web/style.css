@@ -1,0 +1,214 @@
+/* ============================================================
+   style.css — Hashing + ECDSA P-256 PoC
+   Vanilla CSS, no external dependencies.
+   ============================================================ */
+
+:root {
+  --bg:            #f0f2f5;
+  --surface:       #ffffff;
+  --border:        #d1d5db;
+  --text:          #111827;
+  --text-muted:    #6b7280;
+  --accent:        #4f46e5;
+  --accent-hover:  #4338ca;
+  --valid-bg:      #d1fae5;
+  --valid-text:    #065f46;
+  --valid-border:  #6ee7b7;
+  --invalid-bg:    #fee2e2;
+  --invalid-text:  #991b1b;
+  --invalid-border:#fca5a5;
+  --error-bg:      #fff7ed;
+  --error-text:    #9a3412;
+  --error-border:  #fdba74;
+  --mono:          'Courier New', Courier, monospace;
+  --radius:        6px;
+}
+
+/* ---- Reset ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ---- Crypto unavailable banner ---- */
+.banner {
+  background: #dc2626;
+  color: #fff;
+  text-align: center;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.hidden { display: none !important; }
+
+/* ---- Header ---- */
+header {
+  background: var(--accent);
+  color: #fff;
+  padding: 1.25rem 2rem;
+}
+header h1 { font-size: 1.375rem; font-weight: 700; }
+header p  { font-size: 0.8125rem; opacity: 0.8; margin-top: 0.2rem; }
+
+/* ---- Tab bar ---- */
+.tabs {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  padding: 0 2rem;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 0.8rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover            { color: var(--text); }
+.tab-btn.active           { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ---- Main content ---- */
+main {
+  max-width: 760px;
+  margin: 2rem auto;
+  padding: 0 1.25rem;
+}
+
+.tab-panel         { display: none; }
+.tab-panel.active  { display: block; }
+
+/* ---- Cards / subsections ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.card h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+/* ---- Form elements ---- */
+.field {
+  margin-bottom: 1rem;
+}
+label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 0.3rem;
+}
+label .hint {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+textarea[readonly] {
+  background: #f3f4f6;
+  color: var(--text-muted);
+  cursor: default;
+}
+/* Monospace for hex output fields */
+textarea.hex {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+/* ---- Buttons ---- */
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.5rem 1.375rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+button:hover  { background: var(--accent-hover); }
+button:active { opacity: 0.85; }
+
+.btn-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.btn-row button { flex: 1; }
+
+/* ---- Verify result ---- */
+.verify-result {
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  margin-top: 0.75rem;
+}
+.verify-result.valid {
+  background: var(--valid-bg);
+  color: var(--valid-text);
+  border: 1px solid var(--valid-border);
+}
+.verify-result.invalid {
+  background: var(--invalid-bg);
+  color: var(--invalid-text);
+  border: 1px solid var(--invalid-border);
+}
+
+/* ---- Error display ---- */
+.error {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.875rem;
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 520px) {
+  header      { padding: 1rem; }
+  .tabs       { padding: 0 1rem; }
+  main        { margin: 1rem auto; }
+  .card       { padding: 1rem; }
+  .btn-row    { flex-direction: column; }
+}
