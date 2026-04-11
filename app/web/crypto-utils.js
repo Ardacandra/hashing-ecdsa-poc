@@ -162,6 +162,59 @@ async function verifySignature(message, signatureHex, publicKeyHex) {
 }
 
 // ---------------------------------------------------------------------------
+// ECDSA P-256 — import keypair from hex (SG-W3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reconstruct a signing-capable keypair from hex strings.
+ *
+ * Used by the sign handler so that keys loaded from a file or pasted into
+ * the fields work for signing without a separate "Restore Keypair" step.
+ *
+ * @param {string} publicKeyHex   130 hex chars (04 || X || Y).
+ * @param {string} privateKeyHex  64 hex chars (scalar d).
+ * @returns {Promise<{publicKeyHex, privateKeyHex, cryptoKeyPair}>}
+ * @throws {Error} on malformed input or invalid key material.
+ */
+async function importKeypair(publicKeyHex, privateKeyHex) {
+  if (!/^04[0-9a-f]{128}$/.test(publicKeyHex)) {
+    throw new Error(
+      'Invalid public key: must be 130 hex characters starting with "04".'
+    );
+  }
+  if (!/^[0-9a-f]{64}$/.test(privateKeyHex)) {
+    throw new Error(
+      'Invalid private key: must be exactly 64 hex characters.'
+    );
+  }
+
+  const xHex = publicKeyHex.slice(2, 66);
+  const yHex = publicKeyHex.slice(66, 130);
+
+  const jwk = {
+    kty: 'EC',
+    crv: 'P-256',
+    d: _bufToBase64url(_hexToBuf(privateKeyHex)),
+    x: _bufToBase64url(_hexToBuf(xHex)),
+    y: _bufToBase64url(_hexToBuf(yHex)),
+  };
+
+  const privateKey = await globalThis.crypto.subtle.importKey(
+    'jwk', jwk,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true, ['sign']
+  );
+
+  const publicKey = await globalThis.crypto.subtle.importKey(
+    'raw', _hexToBuf(publicKeyHex),
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false, ['verify']
+  );
+
+  return { publicKeyHex, privateKeyHex, cryptoKeyPair: { privateKey, publicKey } };
+}
+
+// ---------------------------------------------------------------------------
 // Helpers (private)
 // ---------------------------------------------------------------------------
 
@@ -181,6 +234,14 @@ function _hexToBuf(hex) {
   return bytes.buffer;
 }
 
+/** @param {ArrayBuffer} buf */
+function _bufToBase64url(buf) {
+  let binary = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
 
 // ---------------------------------------------------------------------------
 // CommonJS export — used by Jest / Node.js test runner.
@@ -188,5 +249,5 @@ function _hexToBuf(hex) {
 // where `module` is undefined.
 // ---------------------------------------------------------------------------
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { sha256Hash, generateKeypair, signMessage, verifySignature };
+  module.exports = { sha256Hash, generateKeypair, importKeypair, signMessage, verifySignature };
 }

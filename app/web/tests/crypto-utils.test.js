@@ -13,6 +13,7 @@
 const {
   sha256Hash,
   generateKeypair,
+  importKeypair,
   signMessage,
   verifySignature,
 } = require('../crypto-utils.js');
@@ -155,6 +156,34 @@ describe('guard and validation', () => {
     const sig = await signMessage('hello', keypair.cryptoKeyPair);
     const result = await verifySignature('hello', sig, keypair.publicKeyHex.slice(0, 128));
     expect(result).toBe('Invalid public key format.');
+  });
+});
+
+// ============================================================
+// importKeypair — SG-W3 (keys loaded from file sign correctly)
+// ============================================================
+describe('importKeypair', () => {
+  test('generate → import → sign → verify produces VALID', async () => {
+    const original = await generateKeypair();
+    const restored = await importKeypair(original.publicKeyHex, original.privateKeyHex);
+    const sig = await signMessage('hello', restored.cryptoKeyPair);
+    expect(await verifySignature('hello', sig, restored.publicKeyHex)).toBe(true);
+  });
+
+  test('signature from imported key verifies against original public key', async () => {
+    const original = await generateKeypair();
+    const restored = await importKeypair(original.publicKeyHex, original.privateKeyHex);
+    const sig = await signMessage('cross-check', restored.cryptoKeyPair);
+    expect(await verifySignature('cross-check', sig, original.publicKeyHex)).toBe(true);
+  });
+
+  test('throws on invalid public key hex', async () => {
+    await expect(importKeypair('deadbeef', 'a'.repeat(64))).rejects.toThrow('Invalid public key');
+  });
+
+  test('throws on invalid private key hex', async () => {
+    const { publicKeyHex } = await generateKeypair();
+    await expect(importKeypair(publicKeyHex, 'zz')).rejects.toThrow('Invalid private key');
   });
 });
 

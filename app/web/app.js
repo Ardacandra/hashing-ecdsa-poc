@@ -6,11 +6,9 @@
  * Depends on: crypto-utils.js loaded before this script.
  * All crypto work is delegated to the functions in crypto-utils.js.
  *
- * State held here:
- *   currentKeypair — result of the last generateKeypair() call, or null.
- *                    Cleared conceptually when a new keypair is generated
- *                    (the old object is replaced; the signature/result fields
- *                    are cleared per FR-2.5).
+ * The sign handler reads the public and private key hex directly from the
+ * UI fields on every click, so imported or pasted keys work without any
+ * separate "restore keypair" step.
  */
 
 // ---------------------------------------------------------------------------
@@ -21,11 +19,6 @@
     document.getElementById('crypto-unavailable').classList.remove('hidden');
   }
 }());
-
-// ---------------------------------------------------------------------------
-// Application state
-// ---------------------------------------------------------------------------
-let currentKeypair = null; // { publicKeyHex, privateKeyHex, cryptoKeyPair }
 
 // ---------------------------------------------------------------------------
 // Tab switching
@@ -63,9 +56,9 @@ document.getElementById('generate-btn').addEventListener('click', async function
   _clearEcdsaError();
   _clearVerifyResult();
   try {
-    currentKeypair = await generateKeypair();
-    document.getElementById('public-key').value = currentKeypair.publicKeyHex;
-    document.getElementById('private-key').value = currentKeypair.privateKeyHex;
+    const keypair = await generateKeypair();
+    document.getElementById('public-key').value = keypair.publicKeyHex;
+    document.getElementById('private-key').value = keypair.privateKeyHex;
     // FR-2.5: clear stale signature and verification result from the previous keypair
     document.getElementById('signature').value = '';
   } catch (err) {
@@ -132,18 +125,22 @@ document.getElementById('download-privkey-btn').addEventListener('click', functi
 document.getElementById('sign-btn').addEventListener('click', async function () {
   _clearEcdsaError();
   _clearVerifyResult();
-  const message = document.getElementById('ecdsa-message').value;
+  const publicKeyHex  = document.getElementById('public-key').value.trim();
+  const privateKeyHex = document.getElementById('private-key').value.trim();
+  const message       = document.getElementById('ecdsa-message').value;
+
+  // FR-3.5: both key fields empty — no keypair loaded at all
+  if (!publicKeyHex && !privateKeyHex) {
+    _showEcdsaError('No keypair loaded. Generate a keypair before signing.');
+    return;
+  }
+
   try {
-    const result = await signMessage(
-      message,
-      currentKeypair ? currentKeypair.cryptoKeyPair : null
-    );
-    // signMessage returns an error string when no keypair is loaded (FR-3.5)
-    if (!/^[0-9a-f]{128}$/.test(result)) {
-      _showEcdsaError(result);
-      return;
-    }
-    document.getElementById('signature').value = result;
+    // Import directly from the key fields so that keys loaded from a file
+    // or pasted in are immediately usable for signing (SG-W3).
+    const keypair = await importKeypair(publicKeyHex, privateKeyHex);
+    const sig = await signMessage(message, keypair.cryptoKeyPair);
+    document.getElementById('signature').value = sig;
     // FR-3.4: the message field is shared between sign and verify — no copy needed.
   } catch (err) {
     _showEcdsaError(err.message);
