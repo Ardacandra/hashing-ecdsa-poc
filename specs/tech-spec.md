@@ -176,6 +176,35 @@ All binary outputs (digests, keys, signatures) are lowercase hex, no separators,
 - P-256 private key scalar: 64 chars
 - ECDSA signature (r || s): 128 chars
 
+### Signature Encoding: Raw vs DER (SG-M3)
+
+ECDSA signatures are mathematically a pair of integers **(r, s)**. There are two common wire formats:
+
+| Property | Raw (r ‖ s) | DER (ASN.1) |
+|----------|-------------|-------------|
+| Structure | r and s concatenated directly | ASN.1 SEQUENCE wrapping two INTEGERs |
+| Length | Always exactly 64 bytes (128 hex chars) | 70–72 bytes typically (140–144 hex chars) |
+| r / s padding | Each zero-padded to 32 bytes | Leading zero bytes stripped; 0x00 prepended if high bit set |
+| Used by | Web Crypto API (IEEE P1363), this app | TLS, X.509, most PKI standards |
+
+**Raw format byte layout (64 bytes):**
+
+```
+[32 bytes r, big-endian, zero-padded] [32 bytes s, big-endian, zero-padded]
+```
+
+**DER format byte layout (variable, ~70–72 bytes):**
+
+```
+30 <seq-len>          — SEQUENCE
+  02 <r-len> <r>      — INTEGER r  (31–33 bytes depending on leading zeros / high bit)
+  02 <s-len> <s>      — INTEGER s  (31–33 bytes depending on leading zeros / high bit)
+```
+
+The DER INTEGER encoding rule that causes variable length: if the most significant bit of the first byte of r (or s) is **1**, a `0x00` prefix byte is added to signal a positive value. Conversely, leading `0x00` bytes are stripped. This means r and s each encode to 31, 32, or 33 bytes.
+
+The mobile app converts between formats in `EcdsaService.rawToDer` / `EcdsaService.derToRaw`. Verification always uses raw internally; the DER→raw conversion happens in the UI layer before calling `EcdsaService.verify`.
+
 ### No Key Persistence
 Private keys are intentionally ephemeral. Persisting private key material is outside scope and would require platform secure storage (Keychain / Android Keystore), which adds complexity inconsistent with a PoC.
 
