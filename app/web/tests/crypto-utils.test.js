@@ -157,3 +157,4 @@ describe('guard and validation', () => {
     expect(result).toBe('Invalid public key format.');
   });
 });
+

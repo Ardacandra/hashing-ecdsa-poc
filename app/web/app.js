@@ -74,6 +74,59 @@ document.getElementById('generate-btn').addEventListener('click', async function
 });
 
 // ---------------------------------------------------------------------------
+// SG-W3: Export — copy key hex to clipboard
+// ---------------------------------------------------------------------------
+document.getElementById('copy-pubkey-btn').addEventListener('click', async function () {
+  const hex = document.getElementById('public-key').value.trim();
+  if (!hex) { _showEcdsaError('No public key to copy.'); return; }
+  await navigator.clipboard.writeText(hex);
+});
+
+document.getElementById('copy-privkey-btn').addEventListener('click', async function () {
+  const hex = document.getElementById('private-key').value.trim();
+  if (!hex) { _showEcdsaError('No private key to copy.'); return; }
+  await navigator.clipboard.writeText(hex);
+});
+
+// ---------------------------------------------------------------------------
+// SG-W3: Import — read key hex from a .txt file into the textarea
+// ---------------------------------------------------------------------------
+document.getElementById('import-pubkey-btn').addEventListener('click', function () {
+  document.getElementById('import-pubkey-file').click();
+});
+document.getElementById('import-pubkey-file').addEventListener('change', async function () {
+  const file = this.files[0];
+  if (!file) return;
+  document.getElementById('public-key').value = (await file.text()).trim();
+  this.value = ''; // reset so the same file can be re-imported
+});
+
+document.getElementById('import-privkey-btn').addEventListener('click', function () {
+  document.getElementById('import-privkey-file').click();
+});
+document.getElementById('import-privkey-file').addEventListener('change', async function () {
+  const file = this.files[0];
+  if (!file) return;
+  document.getElementById('private-key').value = (await file.text()).trim();
+  this.value = '';
+});
+
+// ---------------------------------------------------------------------------
+// SG-W3: Export — download key hex as a text file
+// ---------------------------------------------------------------------------
+document.getElementById('download-pubkey-btn').addEventListener('click', function () {
+  const hex = document.getElementById('public-key').value.trim();
+  if (!hex) { _showEcdsaError('No public key to download.'); return; }
+  _downloadText('public-key.txt', hex);
+});
+
+document.getElementById('download-privkey-btn').addEventListener('click', function () {
+  const hex = document.getElementById('private-key').value.trim();
+  if (!hex) { _showEcdsaError('No private key to download.'); return; }
+  _downloadText('private-key.txt', hex);
+});
+
+// ---------------------------------------------------------------------------
 // ECDSA section — Sign (FR-3.1 – FR-3.5)
 // ---------------------------------------------------------------------------
 document.getElementById('sign-btn').addEventListener('click', async function () {
@@ -148,4 +201,11 @@ function _clearVerifyResult() {
   const el = document.getElementById('verify-result');
   el.textContent = '';
   el.className = 'verify-result hidden';
+}
+
+function _downloadText(filename, text) {
+  const a = document.createElement('a');
+  a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
+  a.download = filename;
+  a.click();
 }

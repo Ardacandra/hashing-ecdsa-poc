@@ -71,15 +71,30 @@
           <!-- Editable so the user can tamper with it to trigger GV-6 -->
           <textarea id="public-key" class="hex" rows="3"
                     placeholder="public key will appear here after generation"></textarea>
+          <!-- SG-W3: export/import actions -->
+          <div class="key-actions">
+            <button id="import-pubkey-btn"   class="btn-sm">Import</button>
+            <input  type="file" id="import-pubkey-file" accept=".txt" class="hidden">
+            <button id="copy-pubkey-btn"     class="btn-sm">Copy</button>
+            <button id="download-pubkey-btn" class="btn-sm">Download</button>
+          </div>
         </div>
 
         <div class="field">
           <label for="private-key">
             Private key scalar <em>d</em>
-            <span class="hint">(64 hex chars · 32 bytes · display only)</span>
+            <span class="hint">(64 hex chars · 32 bytes)</span>
           </label>
-          <textarea id="private-key" class="hex" rows="2" readonly
+          <!-- SG-W3: editable so the user can paste or load a private key -->
+          <textarea id="private-key" class="hex" rows="2"
                     placeholder="private key will appear here after generation"></textarea>
+          <!-- SG-W3: export/import actions -->
+          <div class="key-actions">
+            <button id="import-privkey-btn"   class="btn-sm">Import</button>
+            <input  type="file" id="import-privkey-file" accept=".txt" class="hidden">
+            <button id="copy-privkey-btn"     class="btn-sm">Copy</button>
+            <button id="download-privkey-btn" class="btn-sm">Download</button>
+          </div>
         </div>
       </div>
 

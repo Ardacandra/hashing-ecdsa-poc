@@ -181,6 +181,7 @@ function _hexToBuf(hex) {
   return bytes.buffer;
 }
 
+
 // ---------------------------------------------------------------------------
 // CommonJS export — used by Jest / Node.js test runner.
 // The typeof guard is safe in strict mode; it does not execute in browsers
