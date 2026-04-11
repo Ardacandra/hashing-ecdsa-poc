@@ -130,6 +130,57 @@ void main() {
   });
 
   // ==========================================================================
+  // DER encoding toggle (SG-M3)
+  // ==========================================================================
+
+  group('EcdsaService DER encoding', () {
+    late EcdsaKeypair keypair;
+
+    setUp(() => keypair = EcdsaService.generateKeypair());
+
+    test('rawToDer produces valid DER hex (starts with 30, even-length)', () {
+      final raw = EcdsaService.sign('hello', keypair);
+      final der = EcdsaService.rawToDer(raw);
+      expect(der.length.isEven, isTrue);
+      expect(der.startsWith('30'), isTrue);
+    });
+
+    test('rawToDer → derToRaw round-trip recovers original raw signature', () {
+      final raw = EcdsaService.sign('hello', keypair);
+      final der = EcdsaService.rawToDer(raw);
+      expect(EcdsaService.derToRaw(der), raw);
+    });
+
+    test('DER signature verifies correctly via derToRaw + verify', () {
+      final raw = EcdsaService.sign('hello', keypair);
+      final der = EcdsaService.rawToDer(raw);
+      final recovered = EcdsaService.derToRaw(der);
+      expect(EcdsaService.verify('hello', recovered, keypair.publicKeyHex), isTrue);
+    });
+
+    test('DER of RFC 6979 "test" vector round-trips to exact raw', () {
+      final kp = EcdsaKeypair.fromPrivateKeyHex(_rfcPrivKey);
+      final raw = EcdsaService.sign('test', kp);
+      final der = EcdsaService.rawToDer(raw);
+      expect(EcdsaService.derToRaw(der), raw);
+    });
+
+    test('derToRaw throws EcdsaException on invalid hex input', () {
+      expect(
+        () => EcdsaService.derToRaw('zzzz'),
+        throwsA(isA<EcdsaException>()),
+      );
+    });
+
+    test('derToRaw throws EcdsaException on truncated DER', () {
+      expect(
+        () => EcdsaService.derToRaw('3006'),
+        throwsA(isA<EcdsaException>()),
+      );
+    });
+  });
+
+  // ==========================================================================
   // Guard and validation (GV-1 – GV-6)
   // ==========================================================================
 

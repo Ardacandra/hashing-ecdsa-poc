@@ -145,6 +145,100 @@ class EcdsaService {
   }
 
   // -------------------------------------------------------------------------
+  // DER encode / decode (SG-M3)
+  // -------------------------------------------------------------------------
+
+  /// Encode a raw r‖s signature (128 hex chars) to an ASN.1 DER hex string.
+  ///
+  /// DER INTEGER rules:
+  ///   • Strip leading zero bytes (but keep at least one byte).
+  ///   • If the leading bit is set (byte ≥ 0x80), prepend 0x00 so the value
+  ///     is interpreted as positive.
+  static String rawToDer(String rawHex) {
+    if (!RegExp(r'^[0-9a-f]{128}$').hasMatch(rawHex)) {
+      throw const EcdsaException(
+        'Invalid signature: must be 128 hex characters (raw r||s).',
+      );
+    }
+
+    final r = BigInt.parse(rawHex.substring(0, 64), radix: 16);
+    final s = BigInt.parse(rawHex.substring(64, 128), radix: 16);
+
+    Uint8List encodeInt(BigInt n) {
+      // 32-byte big-endian representation
+      final full = Uint8List(32);
+      var v = n;
+      for (int i = 31; i >= 0; i--) {
+        full[i] = (v & BigInt.from(0xff)).toInt();
+        v >>= 8;
+      }
+      // Strip leading zero bytes (preserve at least one byte)
+      int start = 0;
+      while (start < 31 && full[start] == 0) {
+        start++;
+      }
+      final stripped = full.sublist(start);
+      // Prepend 0x00 if the high bit is set (keep value positive)
+      return stripped[0] & 0x80 != 0
+          ? Uint8List.fromList([0x00, ...stripped])
+          : stripped;
+    }
+
+    final rEnc = encodeInt(r);
+    final sEnc = encodeInt(s);
+    final body = [0x02, rEnc.length, ...rEnc, 0x02, sEnc.length, ...sEnc];
+
+    final der = Uint8List.fromList([0x30, body.length, ...body]);
+    return der.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  }
+
+  /// Decode an ASN.1 DER signature hex string to raw r‖s (128 hex chars).
+  ///
+  /// Throws [EcdsaException] if the input is not valid DER.
+  static String derToRaw(String derHex) {
+    Uint8List bytes;
+    try {
+      if (derHex.length.isOdd || !RegExp(r'^[0-9a-f]+$').hasMatch(derHex)) {
+        throw const FormatException();
+      }
+      bytes = Uint8List(derHex.length ~/ 2);
+      for (int i = 0; i < derHex.length; i += 2) {
+        bytes[i ~/ 2] = int.parse(derHex.substring(i, i + 2), radix: 16);
+      }
+    } on FormatException {
+      throw const EcdsaException('Invalid DER signature: not valid hex.');
+    }
+
+    try {
+      // Expect: 30 <seq-len> 02 <r-len> <r> 02 <s-len> <s>
+      if (bytes.length < 8 || bytes[0] != 0x30 || bytes[2] != 0x02) {
+        throw const EcdsaException('Invalid DER signature: unexpected structure.');
+      }
+      final rLen = bytes[3];
+      final rBytes = bytes.sublist(4, 4 + rLen);
+
+      final sTagIdx = 4 + rLen;
+      if (sTagIdx + 2 > bytes.length || bytes[sTagIdx] != 0x02) {
+        throw const EcdsaException('Invalid DER signature: unexpected structure.');
+      }
+      final sLen = bytes[sTagIdx + 1];
+      final sBytes = bytes.sublist(sTagIdx + 2, sTagIdx + 2 + sLen);
+
+      BigInt decode(Uint8List b) =>
+          BigInt.parse(b.map((e) => e.toRadixString(16).padLeft(2, '0')).join(),
+              radix: 16);
+
+      final r = decode(rBytes).toRadixString(16).padLeft(64, '0');
+      final s = decode(sBytes).toRadixString(16).padLeft(64, '0');
+      return r + s;
+    } on EcdsaException {
+      rethrow;
+    } catch (_) {
+      throw const EcdsaException('Invalid DER signature: unexpected structure.');
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Verify
   // -------------------------------------------------------------------------
 

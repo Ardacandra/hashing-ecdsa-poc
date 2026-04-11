@@ -112,6 +112,9 @@ class _Sha256TabState extends State<_Sha256Tab> {
 // ECDSA P-256 tab
 // ============================================================
 
+// SG-M3: signature encoding modes
+enum _SigEncoding { raw, der }
+
 class _EcdsaTab extends StatefulWidget {
   const _EcdsaTab();
 
@@ -134,6 +137,9 @@ class _EcdsaTabState extends State<_EcdsaTab> {
 
   String? _verifyResult; // 'VALID' | 'INVALID' | null
   String? _errorMessage;
+
+  // SG-M3: which encoding is shown in the signature field
+  _SigEncoding _sigEncoding = _SigEncoding.raw;
 
   @override
   void dispose() {
@@ -171,9 +177,12 @@ class _EcdsaTabState extends State<_EcdsaTab> {
       _errorMessage = null;
     });
     try {
-      final sig = EcdsaService.sign(_messageController.text, _keypair);
+      final rawSig = EcdsaService.sign(_messageController.text, _keypair);
       setState(() {
-        _signatureController.text = sig;
+        // SG-M3: display in the currently selected encoding
+        _signatureController.text = _sigEncoding == _SigEncoding.raw
+            ? rawSig
+            : EcdsaService.rawToDer(rawSig);
         // FR-3.4: message stays in the shared field — no copy needed
       });
     } on EcdsaException catch (e) {
@@ -188,10 +197,32 @@ class _EcdsaTabState extends State<_EcdsaTab> {
       _verifyResult = null;
       _errorMessage = null;
     });
+
+    // FR-4.3: check empty before attempting format conversion
+    final sigField = _signatureController.text.trim();
+    if (sigField.isEmpty) {
+      setState(() => _errorMessage =
+          'No signature to verify. Sign a message first.');
+      return;
+    }
+
+    // SG-M3: convert DER → raw before passing to the service
+    String rawSig;
+    if (_sigEncoding == _SigEncoding.der) {
+      try {
+        rawSig = EcdsaService.derToRaw(sigField);
+      } on EcdsaException catch (e) {
+        setState(() => _errorMessage = e.message);
+        return;
+      }
+    } else {
+      rawSig = sigField;
+    }
+
     try {
       final valid = EcdsaService.verify(
         _messageController.text,
-        _signatureController.text.trim(),
+        rawSig,
         _publicKeyController.text.trim(),
       );
       setState(() => _verifyResult = valid ? 'VALID' : 'INVALID');
@@ -200,6 +231,25 @@ class _EcdsaTabState extends State<_EcdsaTab> {
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     }
+  }
+
+  // SG-M3: convert the displayed signature when the toggle changes
+  void _onEncodingChanged(_SigEncoding encoding) {
+    final current = _signatureController.text.trim();
+    setState(() {
+      _sigEncoding = encoding;
+      _verifyResult = null;
+      _errorMessage = null;
+      if (current.isEmpty) return;
+      try {
+        _signatureController.text = encoding == _SigEncoding.der
+            ? EcdsaService.rawToDer(current)    // raw → DER
+            : EcdsaService.derToRaw(current);   // DER → raw
+      } catch (_) {
+        // Field content can't be converted (e.g. manually edited garbage) — clear it
+        _signatureController.text = '';
+      }
+    });
   }
 
   // ----------------------------------------------------------
@@ -292,11 +342,37 @@ class _EcdsaTabState extends State<_EcdsaTab> {
                 ],
               ),
               const SizedBox(height: 12),
+              // SG-M3: encoding toggle
+              SegmentedButton<_SigEncoding>(
+                segments: const [
+                  ButtonSegment(
+                    value: _SigEncoding.raw,
+                    label: Text('Raw (r ‖ s)'),
+                  ),
+                  ButtonSegment(
+                    value: _SigEncoding.der,
+                    label: Text('DER'),
+                  ),
+                ],
+                selected: {_sigEncoding},
+                onSelectionChanged: (s) => _onEncodingChanged(s.first),
+              ),
+              const SizedBox(height: 10),
               Row(children: [
-                Expanded(child: _FieldLabel('Signature (r ‖ s)')),
+                Expanded(
+                  child: _FieldLabel(
+                    _sigEncoding == _SigEncoding.raw
+                        ? 'Signature (r ‖ s)'
+                        : 'Signature (DER)',
+                  ),
+                ),
                 _CopyIconButton(getText: () => _signatureController.text),
               ]),
-              _HexHint('128 hex chars · 64 bytes · editable for tamper testing'),
+              _HexHint(
+                _sigEncoding == _SigEncoding.raw
+                    ? '128 hex chars · 64 bytes · editable for tamper testing'
+                    : 'ASN.1 DER-encoded · variable length · editable for tamper testing',
+              ),
               const SizedBox(height: 4),
               TextField(
                 controller: _signatureController,
