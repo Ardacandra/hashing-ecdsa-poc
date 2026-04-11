@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../crypto/ecdsa_service.dart';
 import '../crypto/sha256_service.dart';
@@ -221,7 +222,10 @@ class _EcdsaTabState extends State<_EcdsaTab> {
                 child: const Text('Generate Keypair'),
               ),
               const SizedBox(height: 12),
-              _FieldLabel('Public key — uncompressed (04 ‖ X ‖ Y)'),
+              Row(children: [
+                Expanded(child: _FieldLabel('Public key — uncompressed (04 ‖ X ‖ Y)')),
+                _CopyIconButton(getText: () => _publicKeyController.text),
+              ]),
               _HexHint('130 hex chars · 65 bytes · editable for tamper testing'),
               const SizedBox(height: 4),
               TextField(
@@ -234,7 +238,10 @@ class _EcdsaTabState extends State<_EcdsaTab> {
                 ),
               ),
               const SizedBox(height: 12),
-              _FieldLabel('Private key scalar d'),
+              Row(children: [
+                Expanded(child: _FieldLabel('Private key scalar d')),
+                _CopyIconButton(getText: () => _privateKeyController.text),
+              ]),
               _HexHint('64 hex chars · 32 bytes · display only'),
               const SizedBox(height: 4),
               TextField(
@@ -285,7 +292,10 @@ class _EcdsaTabState extends State<_EcdsaTab> {
                 ],
               ),
               const SizedBox(height: 12),
-              _FieldLabel('Signature (r ‖ s)'),
+              Row(children: [
+                Expanded(child: _FieldLabel('Signature (r ‖ s)')),
+                _CopyIconButton(getText: () => _signatureController.text),
+              ]),
               _HexHint('128 hex chars · 64 bytes · editable for tamper testing'),
               const SizedBox(height: 4),
               TextField(
@@ -400,7 +410,12 @@ class _HexOutput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _FieldLabel(label),
+        Row(
+          children: [
+            Expanded(child: _FieldLabel(label)),
+            _CopyIconButton(getText: () => value),
+          ],
+        ),
         _HexHint(hint),
         const SizedBox(height: 4),
         Container(
@@ -414,6 +429,27 @@ class _HexOutput extends StatelessWidget {
           child: SelectableText(value, style: _monoStyle),
         ),
       ],
+    );
+  }
+}
+
+class _CopyIconButton extends StatelessWidget {
+  final String Function() getText;
+  const _CopyIconButton({required this.getText});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.content_copy, size: 16),
+      tooltip: 'Copy to clipboard',
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      onPressed: () {
+        final text = getText();
+        if (text.isNotEmpty) {
+          Clipboard.setData(ClipboardData(text: text));
+        }
+      },
     );
   }
 }
